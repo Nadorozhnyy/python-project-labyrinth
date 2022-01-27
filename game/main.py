@@ -1,3 +1,5 @@
+import random
+
 import pygame as pg
 import sys
 from pygame.locals import KEYDOWN, K_q
@@ -5,6 +7,14 @@ from pygame.locals import KEYDOWN, K_q
 SCREENSIZE = WIDTH_SCR, HEIGHT_SCR = 1200, 800
 GAME_AREA_MULTIPLE = 0.9
 LABYRINTH_MULTIPLE = 0.98
+GRID_SIZE = [3, 3]
+GAME_AREA_BORDER_THICKNESS = 1
+CELL_BORDER_THICKNESS = 2
+
+COLORS = {
+    'screen_color': (0, 0, 0),
+    'player_color': (255, 200, 0),
+}
 
 walls = []
 
@@ -13,10 +23,14 @@ class Wall(object):
 
     def __init__(self, pos, width, height):
         walls.append(self)
-        self.line = pg.Rect(pos[0], pos[1], width, height)
+        self.rect = pg.Rect(pos[0], pos[1], width, height)
+
+    def kill(self):
+        walls.remove(self)
 
 
 class Player(object):
+
     def __init__(self):
         self.rect = pg.Rect(32, 32, 16, 16)
 
@@ -49,38 +63,54 @@ class Player(object):
 
 class Labyrinth:
 
-    def __init__(self):
-        self.screen_size = [1200, 800]
+    def __init__(self, area_width, area_height, grid_size):
+        self.width = area_width
+        self.height = area_height
+        self.self_grid_size = self.grid_width, self.grid_height = grid_size[0], grid_size[1]
+        self.padding_horizontal = self.width - (self.width * LABYRINTH_MULTIPLE)
+        self.padding_vertical = self.height - (self.height * LABYRINTH_MULTIPLE)
+        self.cell_width_size = (self.width - (self.padding_horizontal * 2)) / self.grid_width
+        self.cell_height_size = (self.height - (self.padding_vertical * 2)) / self.grid_height
+        self.cell_border_thickness = CELL_BORDER_THICKNESS
 
-    def wall(self):
+    def points_set(self):
         pass
 
-    def create_grid_coordinates(self, start_width, start_height, width, height, grid_size):
-        coordinates = []
-        padding_width = width - (width * LABYRINTH_MULTIPLE)
-        padding_height = height - (height * LABYRINTH_MULTIPLE)
-        width_size = (width - (padding_width * 2)) / grid_size[0]
-        height_size = (height - (padding_height * 2)) / grid_size[1]
-        start_width += padding_width
-        start_height += padding_height
+    def set_grid_size(self):
+        pass
+
+    def create_grid_coordinates(self, start_width, start_height):
+        coordinates = {
+            'vertical_line': [],
+            'horizontal_line': [],
+        }
+
+        start_width += self.padding_horizontal
+        start_height += self.padding_vertical
         start_width_y = start_width
         start_height_x = start_height
 
-        for _ in range(grid_size[0]):
-            vertical_line = []
-            for y in range(grid_size[1]):
-                coordinate_y = int(y * height_size)
-                vertical_line.append([start_width_y, start_height + coordinate_y])
-            start_width_y += width_size
-            coordinates.append(vertical_line)
+        for _ in range(self.grid_width):
+            for y in range(self.grid_height + 1):
+                coordinate_y = int(y * self.cell_height_size)
+                coordinates['vertical_line'].append(
+                    {
+                        'point': [int(start_width_y), int(start_height + coordinate_y)],
+                        'width': [int(self.cell_width_size)]
+                    }
+                )
+            start_width_y += self.cell_width_size
 
-        for _ in range(grid_size[1]):
-            horizontal_line = []
-            for x in range(grid_size[0]):
-                coordinate_x = int(x * width_size)
-                horizontal_line.append([start_width + coordinate_x, start_height_x])
-            start_height_x += height_size
-            coordinates.append(horizontal_line)
+        for _ in range(self.grid_height):
+            for x in range(self.grid_width + 1):
+                coordinate_x = int(x * self.cell_width_size)
+                coordinates['horizontal_line'].append(
+                    {
+                        'point': [int(start_width + coordinate_x), int(start_height_x)],
+                        'height': [int(self.cell_height_size)]
+                    }
+                )
+            start_height_x += self.cell_height_size
 
         return coordinates
 
@@ -105,19 +135,16 @@ def set_game_area(screen):
 def main():
     pg.init()
     player = Player()
-    labyrinth = Labyrinth()
     screen = pg.display.set_mode(SCREENSIZE)
     game_area = pg.Rect(set_game_area(screen))
-    coordinates_for_walls = labyrinth.create_grid_coordinates(game_area.topleft[0],
-                                                              game_area.topleft[1],
-                                                              game_area.width,
-                                                              game_area.height,
-                                                              [25, 25])
+    labyrinth = Labyrinth(game_area.width, game_area.height, GRID_SIZE)
+    border_thickness = labyrinth.cell_border_thickness
+    coordinates_for_walls = labyrinth.create_grid_coordinates(game_area.topleft[0], game_area.topleft[1])
 
-    for line in coordinates_for_walls:
-        for point in line:
-            Wall()
-
+    for point in coordinates_for_walls['vertical_line']:
+        Wall(point['point'], point['width'][0], border_thickness)
+    for point in coordinates_for_walls['horizontal_line']:
+        Wall(point['point'], border_thickness, point['height'][0])
 
     while True:
         check_events()
@@ -132,15 +159,11 @@ def main():
             player.move(0, 2)
         game_area_color = pg.Color('aquamarine2')
         lines_color = pg.Color('azure')
-        pg.draw.rect(screen, game_area_color, game_area, 2)
-        screen.fill((0, 0, 0))
-        for line in labyrinth.create_grid_coordinates(game_area.topleft[0],
-                                                      game_area.topleft[1],
-                                                      game_area.width,
-                                                      game_area.height,
-                                                      [25, 25]):
-            pg.draw.lines(screen, lines_color, False, line, 1)
-        pg.draw.rect(screen, (255, 200, 0), player.rect)
+        screen.fill(COLORS['screen_color'])
+        for wall in walls:
+            pg.draw.rect(screen, lines_color, wall.rect)
+        pg.draw.rect(screen, game_area_color, game_area, GAME_AREA_BORDER_THICKNESS)
+        pg.draw.rect(screen, COLORS['player_color'], player.rect)
         pg.display.flip()
 
 
