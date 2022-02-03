@@ -7,29 +7,22 @@ from pygame.locals import KEYDOWN, K_q
 SCREENSIZE = WIDTH_SCR, HEIGHT_SCR = 1200, 800
 GAME_AREA_MULTIPLE = 0.9
 LABYRINTH_MULTIPLE = 0.98
-GRID_SIZE = [80, 80]
+GRID_SIZE = [30, 30]
 GAME_AREA_BORDER_THICKNESS = 1
 CELL_BORDER_THICKNESS = 2
+player_speed = 75 / max(GRID_SIZE)
 clock = pg.time.Clock()
 
 COLORS = {
     'screen_color': (0, 0, 0),
     'player_color': (255, 200, 0),
     'center_point_color': (255, 99, 71),
+    'exit_color': (255, 105, 180),
 }
 
 walls = []
 center_points = []
-
-
-class Wall(object):
-
-    def __init__(self, pos, width, height):
-        walls.append(self)
-        self.rect = pg.Rect(pos[0], pos[1], width, height)
-
-    def kill(self):
-        walls.remove(self)
+tracking_points = []
 
 
 def get_max_horizontal_coordinate():
@@ -46,6 +39,23 @@ class CenterPoints(object):
         self.rect = pg.Rect(pos[0], pos[1], 1, 1)
 
 
+class Wall(object):
+
+    def __init__(self, pos, width, height):
+        walls.append(self)
+        self.rect = pg.Rect(pos[0], pos[1], width, height)
+
+    def kill(self):
+        walls.remove(self)
+
+
+class Exit(object):
+
+    def __init__(self, pos, width, height):
+        walls.append(self)
+        self.rect = pg.Rect(pos[0], pos[1], width, height)
+
+
 class Player(object):
 
     def __init__(self, start_coordinates, size):
@@ -54,8 +64,10 @@ class Player(object):
     def move(self, dx, dy):
         # Move each axis separately. Note that this checks for collisions both times.
         if dx != 0:
+            tracking_points.append(self)
             self.move_single_axis(dx, 0)
         if dy != 0:
+            tracking_points.append(self)
             self.move_single_axis(0, dy)
 
     def move_single_axis(self, dx, dy):
@@ -88,6 +100,7 @@ class Labyrinth:
         self.cell_width_size = (self.width - (self.padding_horizontal * 2)) / self.grid_size_horizontal
         self.cell_height_size = (self.height - (self.padding_vertical * 2)) / self.grid_size_vertical
         self.cell_border_thickness = CELL_BORDER_THICKNESS
+        self.end_rect = None
 
     def set_center_points(self, start_width, start_height):
         points_center = []
@@ -142,6 +155,13 @@ class Labyrinth:
 
         return coordinates
 
+    def set_end_rect(self, points):
+        points_length = len(points)
+        list_of_possible_end_rect = points[
+                                    int(points_length - self.grid_size_horizontal):
+                                    points_length - int(self.grid_size_horizontal / 2)]
+        return random.choice(list_of_possible_end_rect)
+
 
 def check_events():
     for event in pg.event.get():
@@ -152,15 +172,19 @@ def check_events():
             sys.exit()
 
 
-def check_move_events(key, player):
+def check_move_events(key, player, end_rect):
     if key[pg.K_LEFT]:
-        player.move(-4, 0)
+        player.move(-player_speed, 0)
     if key[pg.K_RIGHT]:
-        player.move(4, 0)
+        player.move(player_speed, 0)
     if key[pg.K_UP]:
-        player.move(0, -4)
+        player.move(0, -player_speed)
     if key[pg.K_DOWN]:
-        player.move(0, 4)
+        player.move(0, player_speed)
+
+    if player.rect.colliderect(end_rect):
+        pg.quit()
+        sys.exit()
 
 
 def set_game_area(screen):
@@ -221,9 +245,16 @@ def main():
         CenterPoints(point)
 
     #  TODO refactor Player
-    player = Player([coordinates_for_center[0][0], coordinates_for_center[0][1]], labyrinth.cell_width_size / 3)
-    # start labyrinth
+    size_of_player = min([labyrinth.cell_width_size, labyrinth.cell_height_size]) / 2
+    start_player_coordinates = [
+        coordinates_for_center[0][0] - (size_of_player / 2),
+        coordinates_for_center[0][1] - (size_of_player / 2)
+    ]
+    player = Player(start_player_coordinates,
+                    size_of_player)
+    end = labyrinth.set_end_rect(center_points).rect.inflate(size_of_player, size_of_player)
 
+    # start labyrinth
     rect_union = []
 
     for vertical in range(labyrinth.grid_size_vertical):
@@ -279,10 +310,10 @@ def main():
         # labyrinth formation disappears
 
     while True:
-        clock.tick(40)
+        clock.tick(100)
         check_events()
         key = pg.key.get_pressed()
-        check_move_events(key, player)
+        check_move_events(key, player, end)
 
         game_area_color = pg.Color('aquamarine2')
         lines_color = pg.Color('azure')
@@ -296,6 +327,9 @@ def main():
 
         pg.draw.rect(screen, game_area_color, game_area, GAME_AREA_BORDER_THICKNESS)
         pg.draw.rect(screen, COLORS['player_color'], player.rect)
+        pg.draw.rect(screen, COLORS['exit_color'], end)
+        for track in tracking_points:
+            pg.draw.rect(screen, COLORS['center_point_color'], track)
         pg.display.flip()
         clock.tick(360)
 
