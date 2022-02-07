@@ -22,14 +22,6 @@ COLORS = {
 
 walls = []
 center_points = []
-tracking_points = []
-
-
-def get_max_horizontal_coordinate():
-    horizontal_points_coordinate = []
-    for point in center_points:
-        horizontal_points_coordinate.append(point.rect.center[0])
-    return max(horizontal_points_coordinate)
 
 
 class CenterPoints(object):
@@ -64,14 +56,11 @@ class Player(object):
     def move(self, dx, dy):
         # Move each axis separately. Note that this checks for collisions both times.
         if dx != 0:
-            tracking_points.append(self)
             self.move_single_axis(dx, 0)
         if dy != 0:
-            tracking_points.append(self)
             self.move_single_axis(0, dy)
 
     def move_single_axis(self, dx, dy):
-
         # Move the rect
         self.rect.x += dx
         self.rect.y += dy
@@ -91,76 +80,101 @@ class Player(object):
 
 class Labyrinth:
 
-    def __init__(self, area_width, area_height, grid_size):
+    def __init__(self, area_width, area_height, grid_number):
         self.width = area_width
         self.height = area_height
-        self.self_grid_size = self.grid_size_horizontal, self.grid_size_vertical = grid_size[0], grid_size[1]
-        self.padding_horizontal = self.width - (self.width * LABYRINTH_MULTIPLE)
-        self.padding_vertical = self.height - (self.height * LABYRINTH_MULTIPLE)
-        self.cell_width_size = (self.width - (self.padding_horizontal * 2)) / self.grid_size_horizontal
-        self.cell_height_size = (self.height - (self.padding_vertical * 2)) / self.grid_size_vertical
+        self.grid_size = self.grid_numbers_on_x_axis, self.grid_numbers_on_y_axis = grid_number[0], grid_number[1]
+        self.padding_x_axis = self.width - (self.width * LABYRINTH_MULTIPLE)
+        self.padding_y_axis = self.height - (self.height * LABYRINTH_MULTIPLE)
+        self.cell_width_size = (self.width - (self.padding_x_axis * 2)) / self.grid_numbers_on_x_axis
+        self.cell_height_size = (self.height - (self.padding_y_axis * 2)) / self.grid_numbers_on_y_axis
         self.cell_border_thickness = CELL_BORDER_THICKNESS
-        self.end_rect = None
 
-    def set_center_points(self, start_width, start_height):
+    def set_center_points(self, start_x_coordinates, start_y_coordinates):
+        """
+        Create list of coordinates of cell centers
+        :param start_x_coordinates: first coordinate on x-axis
+        :param start_y_coordinates: first coordinate on y-axis
+        :return: list of lists with x and y coordinates
+        """
         points_center = []
-        start_width += self.padding_horizontal
-        start_height += self.padding_vertical
-        #  TODO rename start_width_y and start_height_x
-        start_height_x = start_height
-
-        for _ in range(self.grid_size_vertical):
-            vertical_coordinate = start_height_x + self.cell_height_size / 2
-            start_height_x += self.cell_height_size
-            start_width_y = start_width
-            for _ in range(self.grid_size_horizontal):
-                horizontal_coordinate = start_width_y + self.cell_width_size / 2
-                points_center.append([horizontal_coordinate, vertical_coordinate])
-                start_width_y += self.cell_width_size
+        start_x_coordinates += self.padding_x_axis
+        start_y_coordinates += self.padding_y_axis
+        y_axis_bias = start_y_coordinates
+        for _ in range(self.grid_numbers_on_y_axis):
+            y_coordinate = y_axis_bias + self.cell_height_size / 2
+            y_axis_bias += self.cell_height_size
+            x_axis_bias = start_x_coordinates
+            for _ in range(self.grid_numbers_on_x_axis):
+                x_coordinate = x_axis_bias + self.cell_width_size / 2
+                points_center.append([x_coordinate, y_coordinate])
+                x_axis_bias += self.cell_width_size
         return points_center
 
-    def create_grid_coordinates(self, start_width, start_height):
+    def create_grid_coordinates(self, start_x_coordinates, start_y_coordinates):
+        """
+        Create dict of coordinates vertical and horizontal lines to make grid
+        :param start_x_coordinates:
+        :param start_y_coordinates:
+        :return: return dict with keys 'horizontal_line' and 'vertical_line' (list) and value lists of dict with keys
+        for 'horizontal_line' dict 'point' and 'width' and keys for 'vertical_line' dict 'point' and 'height'
+        """
         coordinates = {
-            'vertical_line': [],
             'horizontal_line': [],
+            'vertical_line': [],
         }
+        start_x_coordinates += self.padding_x_axis
+        start_y_coordinates += self.padding_y_axis
+        x_coordinates = start_x_coordinates
+        y_coordinates = start_y_coordinates
 
-        start_width += self.padding_horizontal
-        start_height += self.padding_vertical
-        #  TODO rename start_width_y and start_height_x
-        start_width_y = start_width
-        start_height_x = start_height
-        #  TODO rename y
-        for _ in range(self.grid_size_horizontal):
-            for y in range(self.grid_size_vertical + 1):
-                coordinate_y = int(y * self.cell_height_size)
-                coordinates['vertical_line'].append(
-                    {
-                        'point': [int(start_width_y), int(start_height + coordinate_y)],
-                        'width': [int(self.cell_width_size)]
-                    }
-                )
-            start_width_y += self.cell_width_size
-        #  TODO rename x
-        for _ in range(self.grid_size_vertical):
-            for x in range(self.grid_size_horizontal + 1):
-                coordinate_x = int(x * self.cell_width_size)
+        # add 1 to width and height to get rid of gap between walls
+        # add horizontal line
+        for _ in range(self.grid_numbers_on_x_axis):
+            for y_grid in range(self.grid_numbers_on_y_axis + 1):
+                coordinate_y = int(y_grid * self.cell_height_size)
                 coordinates['horizontal_line'].append(
                     {
-                        'point': [int(start_width + coordinate_x), int(start_height_x)],
-                        'height': [int(self.cell_height_size)]
+                        'point': [int(x_coordinates), int(start_y_coordinates + coordinate_y)],
+                        'width': [int(self.cell_width_size) + 1]
                     }
                 )
-            start_height_x += self.cell_height_size
+            x_coordinates += self.cell_width_size
+        # add vertical line
+        for _ in range(self.grid_numbers_on_y_axis):
+            for x_grid in range(self.grid_numbers_on_x_axis + 1):
+                coordinate_x = int(x_grid * self.cell_width_size)
+                coordinates['vertical_line'].append(
+                    {
+                        'point': [int(start_x_coordinates + coordinate_x), int(y_coordinates)],
+                        'height': [int(self.cell_height_size) + 1]
+                    }
+                )
+            y_coordinates += self.cell_height_size
 
         return coordinates
 
-    def set_end_rect(self, points):
-        points_length = len(points)
-        list_of_possible_end_rect = points[
-                                    int(points_length - self.grid_size_horizontal):
-                                    points_length - int(self.grid_size_horizontal / 2)]
-        return random.choice(list_of_possible_end_rect)
+    def coordinates_of_exit_point(self, points):
+        """
+        Choose random point from last half of bottom horizontal line of labyrinth
+        :param points: list of CenterPoints object
+        :return: return CenterPoints object
+        """
+        list_len = len(points)
+        start_slice = int(list_len - self.grid_numbers_on_x_axis)
+        end_slice = list_len - int(self.grid_numbers_on_x_axis / 2)
+        return random.choice(points[start_slice:end_slice])
+
+
+def get_max_horizontal_coordinate():
+    """
+
+    :return: int
+    """
+    horizontal_points_coordinate = []
+    for point in center_points:
+        horizontal_points_coordinate.append(point.rect.center[0])
+    return max(horizontal_points_coordinate)
 
 
 def check_events():
@@ -173,6 +187,7 @@ def check_events():
 
 
 def check_move_events(key, player, end_rect):
+
     if key[pg.K_LEFT]:
         player.move(-player_speed, 0)
     if key[pg.K_RIGHT]:
@@ -203,11 +218,11 @@ def list_of_lengths_chunks(list_to_chunk, numbers_of_chunks):
         return [1] * length_of_list
     else:
         list_of_chunks_length = []
-        max_partition_length = length_of_list - (numbers_of_chunks - 1)
+        max_partition_length = int((length_of_list - (numbers_of_chunks - 1)) / 2)
         for _ in range(numbers_of_chunks):
             if _ != numbers_of_chunks - 1:
                 list_of_chunks_length.append(random.randint(1, max_partition_length))
-                max_partition_length = (length_of_list - sum(list_of_chunks_length)) - (numbers_of_chunks - _ - 2)
+                max_partition_length = int(((length_of_list - sum(list_of_chunks_length)) - (numbers_of_chunks - _ - 2)) / 2)
             else:
                 list_of_chunks_length.append(length_of_list - sum(list_of_chunks_length))
     return list_of_chunks_length
@@ -233,13 +248,12 @@ def main():
     labyrinth = Labyrinth(game_area.width, game_area.height, GRID_SIZE)
     coordinates_for_center = labyrinth.set_center_points(game_area.topleft[0], game_area.topleft[1])
     coordinates_for_walls = labyrinth.create_grid_coordinates(game_area.topleft[0], game_area.topleft[1])
-    border_thickness = labyrinth.cell_border_thickness
 
     for point in coordinates_for_walls['vertical_line']:
-        Wall(point['point'], point['width'][0], border_thickness)
+        Wall(point['point'], labyrinth.cell_border_thickness, point['height'][0])
 
     for point in coordinates_for_walls['horizontal_line']:
-        Wall(point['point'], border_thickness, point['height'][0])
+        Wall(point['point'], point['width'][0], labyrinth.cell_border_thickness)
 
     for point in coordinates_for_center:
         CenterPoints(point)
@@ -252,15 +266,15 @@ def main():
     ]
     player = Player(start_player_coordinates,
                     size_of_player)
-    end = labyrinth.set_end_rect(center_points).rect.inflate(size_of_player, size_of_player)
+    end = labyrinth.coordinates_of_exit_point(center_points).rect.inflate(size_of_player, size_of_player)
 
     # start labyrinth
     rect_union = []
 
-    for vertical in range(labyrinth.grid_size_vertical):
+    for vertical in range(labyrinth.grid_numbers_on_y_axis):
         rect_union.append([])
-        for horizontal in range(vertical * labyrinth.grid_size_horizontal,
-                                labyrinth.grid_size_horizontal + (vertical * labyrinth.grid_size_horizontal)):
+        for horizontal in range(vertical * labyrinth.grid_numbers_on_x_axis,
+                                labyrinth.grid_numbers_on_x_axis + (vertical * labyrinth.grid_numbers_on_x_axis)):
             rect_union[vertical].append(center_points[horizontal].rect)
 
     for rect_count, rect_value in enumerate(rect_union):
@@ -272,37 +286,25 @@ def main():
                 walls[index].kill()
         else:
             #  TODO rename ALL, this is terrible
-            chunks_list = make_list_of_chunks(rect_value, random.randint(1, labyrinth.grid_size_horizontal))
+            chunks_list = make_list_of_chunks(rect_value, random.randint(1, labyrinth.grid_numbers_on_x_axis))
             for chunk_count, chunks_value in enumerate(chunks_list):
                 rect_union_new = pg.Rect.unionall(chunks_value[0], chunks_value)
                 points_collidelistall = rect_union_new.collidelistall(center_points)
                 flip_coin = random.randint(0, 1)
-                if flip_coin == 0:
-                    random_point = random.choice(points_collidelistall)
+                random_point = random.choice(points_collidelistall)
+                last_point = points_collidelistall[-1]
+                if flip_coin == 0 or center_points[last_point].rect.center[0] == get_max_horizontal_coordinate():
                     random_point_in_rect = center_points[random_point].rect
-                    random_point_on_top = center_points[random_point - labyrinth.grid_size_horizontal].rect
+                    random_point_on_top = center_points[random_point - labyrinth.grid_numbers_on_x_axis].rect
                     rect_up = pg.Rect.union(random_point_in_rect, random_point_on_top)
-                    collidelistall_with_up = rect_up.collidelistall(walls)
-                    for index in reversed(collidelistall_with_up):
-                        walls[index].kill()
+                    collidelistall_with_walls = rect_up.collidelistall(walls)
                 else:
-                    # TODO refactor if/else
-                    last_point = points_collidelistall[-1]
-                    if center_points[last_point].rect.center[0] == get_max_horizontal_coordinate():
-                        random_point = random.choice(points_collidelistall)
-                        random_point_in_rect = center_points[random_point].rect
-                        random_point_on_top = center_points[random_point - labyrinth.grid_size_horizontal].rect
-                        rect_up = pg.Rect.union(random_point_in_rect, random_point_on_top)
-                        collidelistall_with_up = rect_up.collidelistall(walls)
-                        for index in reversed(collidelistall_with_up):
-                            walls[index].kill()
-                    else:
-                        random_point_in_rect = center_points[last_point].rect
-                        random_point_on_top = center_points[last_point + 1].rect
-                        rect_up = pg.Rect.union(random_point_in_rect, random_point_on_top)
-                        collidelistall_with_up = rect_up.collidelistall(walls)
-                        for index in reversed(collidelistall_with_up):
-                            walls[index].kill()
+                    random_point_in_rect = center_points[last_point].rect
+                    random_point_on_top = center_points[last_point + 1].rect
+                    rect_up = pg.Rect.union(random_point_in_rect, random_point_on_top)
+                    collidelistall_with_walls = rect_up.collidelistall(walls)
+                for index in reversed(collidelistall_with_walls):
+                    walls[index].kill()
                 some_thing = rect_union_new.collidelistall(walls)
                 for index in reversed(some_thing):
                     walls[index].kill()
@@ -328,8 +330,6 @@ def main():
         pg.draw.rect(screen, game_area_color, game_area, GAME_AREA_BORDER_THICKNESS)
         pg.draw.rect(screen, COLORS['player_color'], player.rect)
         pg.draw.rect(screen, COLORS['exit_color'], end)
-        for track in tracking_points:
-            pg.draw.rect(screen, COLORS['center_point_color'], track)
         pg.display.flip()
         clock.tick(360)
 
