@@ -5,7 +5,7 @@ import sys
 from pygame.locals import KEYDOWN, K_q
 
 SCREENSIZE = WIDTH_SCR, HEIGHT_SCR = 1200, 800
-GAME_AREA_MULTIPLE = 0.9
+GAME_AREA_MULTIPLE = 0.98
 LABYRINTH_MULTIPLE = 0.98
 GRID_SIZE = [30, 30]
 GAME_AREA_BORDER_THICKNESS = 1
@@ -78,6 +78,8 @@ class Player(object):
                     self.rect.top = wall.rect.bottom
 
 
+
+# TODO rename, it's more about grid then about labirinth
 class Labyrinth:
 
     def __init__(self, area_width, area_height, grid_number):
@@ -165,11 +167,49 @@ class Labyrinth:
         end_slice = list_len - int(self.grid_numbers_on_x_axis / 2)
         return random.choice(points[start_slice:end_slice])
 
+    def make_list_of_chunks(self, list_to_chunk):
+        result = []
+        lengths_list = self.list_of_lengths_chunks(random.randint(1, self.grid_numbers_on_x_axis))
+
+        for count, value in enumerate(lengths_list):
+            result.append([])
+            for _ in range(value):
+                pop_element = list_to_chunk.pop(0)
+                result[count].append(pop_element)
+        return result
+
+    def list_of_lengths_chunks(self, numbers_of_chunks):
+        """
+        Create a list with random lengths to divide lines of labyrinth
+        :param numbers_of_chunks: numbers of chunks to divide line
+        :return: list of int
+        """
+        if numbers_of_chunks <= 1:
+            return [self.grid_numbers_on_x_axis]
+        elif numbers_of_chunks >= self.grid_numbers_on_x_axis:
+            return [1] * self.grid_numbers_on_x_axis
+        else:
+            list_of_chunks_length = []
+            # find max possible length of chunk
+            # divide by two to avoid empty corridors
+            max_partition_length = int((self.grid_numbers_on_x_axis - (numbers_of_chunks - 1)) / 2)
+            for _ in range(numbers_of_chunks):
+                if _ != numbers_of_chunks - 1:
+                    # append random length of chunk from 1 to max possible
+                    list_of_chunks_length.append(random.randint(1, max_partition_length))
+                    # new max possible length of chunk after append random one
+                    max_partition_length = int(
+                        ((self.grid_numbers_on_x_axis - sum(list_of_chunks_length)) - (numbers_of_chunks - _ - 2)) / 2)
+                else:
+                    list_of_chunks_length.append(self.grid_numbers_on_x_axis - sum(list_of_chunks_length))
+        # shuffle to maximize randomnicity of lengths
+        random.shuffle(list_of_chunks_length)
+        return list_of_chunks_length
+
 
 def get_max_horizontal_coordinate():
     """
-
-    :return: int
+    :return: return max value of coordinates on x-axis (int)
     """
     horizontal_points_coordinate = []
     for point in center_points:
@@ -178,6 +218,9 @@ def get_max_horizontal_coordinate():
 
 
 def check_events():
+    """
+    check quit event
+    """
     for event in pg.event.get():
         if event.type == pg.QUIT:
             sys.exit()
@@ -187,7 +230,12 @@ def check_events():
 
 
 def check_move_events(key, player, end_rect):
-
+    """
+    check move events
+    :param key: pressed key
+    :param player: player object
+    :param end_rect: exit
+    """
     if key[pg.K_LEFT]:
         player.move(-player_speed, 0)
     if key[pg.K_RIGHT]:
@@ -203,42 +251,69 @@ def check_move_events(key, player, end_rect):
 
 
 def set_game_area(screen):
+    """
+    set game area settings
+    :param screen: pygame screen
+    :return: paddings on x-axis and y-axis and width and height of game area
+    """
     width_game_area = screen.get_width() * GAME_AREA_MULTIPLE
     height_game_area = screen.get_height() * GAME_AREA_MULTIPLE
-    padding_width_area = (screen.get_width() - width_game_area) / 2
-    padding_height_area = (screen.get_height() - height_game_area) / 2
-    return padding_width_area, padding_height_area, width_game_area, height_game_area
+    padding_on_x_axis = (screen.get_width() - width_game_area) / 2
+    padding_on_y_axis = (screen.get_height() - height_game_area) / 2
+    return padding_on_x_axis, padding_on_y_axis, width_game_area, height_game_area
 
 
-def list_of_lengths_chunks(list_to_chunk, numbers_of_chunks):
-    length_of_list = len(list_to_chunk)
-    if numbers_of_chunks <= 1:
-        return [length_of_list]
-    elif numbers_of_chunks >= length_of_list:
-        return [1] * length_of_list
-    else:
-        list_of_chunks_length = []
-        max_partition_length = int((length_of_list - (numbers_of_chunks - 1)) / 2)
-        for _ in range(numbers_of_chunks):
-            if _ != numbers_of_chunks - 1:
-                list_of_chunks_length.append(random.randint(1, max_partition_length))
-                max_partition_length = int(((length_of_list - sum(list_of_chunks_length)) - (numbers_of_chunks - _ - 2)) / 2)
-            else:
-                list_of_chunks_length.append(length_of_list - sum(list_of_chunks_length))
-    return list_of_chunks_length
+def create_rect_union(labyrinth):
+    """
+
+    :param labyrinth: labyrinth object
+    :return: list of lists rects
+    """
+    rect_union = []
+    for y in range(labyrinth.grid_numbers_on_y_axis):
+        rect_union.append([])
+        for x in range(y * labyrinth.grid_numbers_on_x_axis,
+                       labyrinth.grid_numbers_on_x_axis + (y * labyrinth.grid_numbers_on_x_axis)):
+            rect_union[y].append(center_points[x].rect)
+    return rect_union
 
 
-def make_list_of_chunks(list_to_chunk, numbers_of_chunks):
-    result = []
-    list_to_chunk_new = list_to_chunk.copy()
-    lengths_list = list_of_lengths_chunks(list_to_chunk, numbers_of_chunks)
-    random.shuffle(lengths_list)
-    for count, value in enumerate(lengths_list):
-        result.append([])
-        for _ in range(value):
-            pop_element = list_to_chunk_new.pop(0)
-            result[count].append(pop_element)
-    return result
+def set_labyrinth(labyrinth):
+    labyrinth_all_rects = create_rect_union(labyrinth)
+
+    for rect_count, rect_value in enumerate(labyrinth_all_rects):
+        # first line will be empty
+        if rect_count == 0:
+            rect_from_line = pg.Rect.unionall(rect_value[0], rect_value)
+            points_intersection = rect_from_line.collidelistall(walls)
+            for _ in reversed(points_intersection):
+                walls[_].kill()
+        else:
+            # other lines will be divide on chunks
+            chunks_list = labyrinth.make_list_of_chunks(rect_value)
+
+            for chunk_count, chunks_value in enumerate(chunks_list):
+                rect_from_line = pg.Rect.unionall(chunks_value[0], chunks_value)
+                intersection_centers_point = rect_from_line.collidelistall(center_points)
+                random_point = random.choice(intersection_centers_point)
+                random_point_in_line = center_points[random_point].rect
+                last_point = intersection_centers_point[-1]
+                flip_coin = random.randint(0, 1)
+
+                if flip_coin == 0 or center_points[last_point].rect.center[0] == get_max_horizontal_coordinate():
+                    rect = center_points[random_point - labyrinth.grid_numbers_on_x_axis].rect
+                else:
+                    rect = center_points[last_point + 1].rect
+
+                rect_union = pg.Rect.union(random_point_in_line, rect)
+                points_intersection = rect_union.collidelistall(walls)
+
+                for _ in reversed(points_intersection):
+                    walls[_].kill()
+
+                points_intersection = rect_from_line.collidelistall(walls)
+                for _ in reversed(points_intersection):
+                    walls[_].kill()
 
 
 def main():
@@ -258,78 +333,27 @@ def main():
     for point in coordinates_for_center:
         CenterPoints(point)
 
-    #  TODO refactor Player
     size_of_player = min([labyrinth.cell_width_size, labyrinth.cell_height_size]) / 2
+    # get coordinates of first center point and subtract half of players size
     start_player_coordinates = [
         coordinates_for_center[0][0] - (size_of_player / 2),
         coordinates_for_center[0][1] - (size_of_player / 2)
     ]
-    player = Player(start_player_coordinates,
-                    size_of_player)
-    end = labyrinth.coordinates_of_exit_point(center_points).rect.inflate(size_of_player, size_of_player)
-
-    # start labyrinth
-    rect_union = []
-
-    for vertical in range(labyrinth.grid_numbers_on_y_axis):
-        rect_union.append([])
-        for horizontal in range(vertical * labyrinth.grid_numbers_on_x_axis,
-                                labyrinth.grid_numbers_on_x_axis + (vertical * labyrinth.grid_numbers_on_x_axis)):
-            rect_union[vertical].append(center_points[horizontal].rect)
-
-    for rect_count, rect_value in enumerate(rect_union):
-        if rect_count == 0:
-            rect_union_new = pg.Rect.unionall(rect_value[0], rect_value)
-            pg.draw.rect(screen, pg.Color('blanchedalmond'), rect_union_new, 6)
-            some_thing = rect_union_new.collidelistall(walls)
-            for index in reversed(some_thing):
-                walls[index].kill()
-        else:
-            #  TODO rename ALL, this is terrible
-            chunks_list = make_list_of_chunks(rect_value, random.randint(1, labyrinth.grid_numbers_on_x_axis))
-            for chunk_count, chunks_value in enumerate(chunks_list):
-                rect_union_new = pg.Rect.unionall(chunks_value[0], chunks_value)
-                points_collidelistall = rect_union_new.collidelistall(center_points)
-                flip_coin = random.randint(0, 1)
-                random_point = random.choice(points_collidelistall)
-                last_point = points_collidelistall[-1]
-                if flip_coin == 0 or center_points[last_point].rect.center[0] == get_max_horizontal_coordinate():
-                    random_point_in_rect = center_points[random_point].rect
-                    random_point_on_top = center_points[random_point - labyrinth.grid_numbers_on_x_axis].rect
-                    rect_up = pg.Rect.union(random_point_in_rect, random_point_on_top)
-                    collidelistall_with_walls = rect_up.collidelistall(walls)
-                else:
-                    random_point_in_rect = center_points[last_point].rect
-                    random_point_on_top = center_points[last_point + 1].rect
-                    rect_up = pg.Rect.union(random_point_in_rect, random_point_on_top)
-                    collidelistall_with_walls = rect_up.collidelistall(walls)
-                for index in reversed(collidelistall_with_walls):
-                    walls[index].kill()
-                some_thing = rect_union_new.collidelistall(walls)
-                for index in reversed(some_thing):
-                    walls[index].kill()
-
-        # labyrinth formation disappears
+    player = Player(start_player_coordinates, size_of_player)
+    exit_rect = labyrinth.coordinates_of_exit_point(center_points).rect.inflate(size_of_player, size_of_player)
+    set_labyrinth(labyrinth)
 
     while True:
         clock.tick(100)
         check_events()
         key = pg.key.get_pressed()
-        check_move_events(key, player, end)
-
-        game_area_color = pg.Color('aquamarine2')
-        lines_color = pg.Color('azure')
+        check_move_events(key, player, exit_rect)
         screen.fill(COLORS['screen_color'])
-
         for wall in walls:
-            pg.draw.rect(screen, lines_color, wall.rect)
-
-        # for center_point in center_points:
-        #     pg.draw.rect(screen, COLORS['center_point_color'], center_point.rect)
-
-        pg.draw.rect(screen, game_area_color, game_area, GAME_AREA_BORDER_THICKNESS)
+            pg.draw.rect(screen, pg.Color('azure'), wall.rect)
+        pg.draw.rect(screen, pg.Color('aquamarine2'), game_area, GAME_AREA_BORDER_THICKNESS)
         pg.draw.rect(screen, COLORS['player_color'], player.rect)
-        pg.draw.rect(screen, COLORS['exit_color'], end)
+        pg.draw.rect(screen, COLORS['exit_color'], exit_rect)
         pg.display.flip()
         clock.tick(360)
 
