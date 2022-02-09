@@ -78,8 +78,7 @@ class Player(object):
                     self.rect.top = wall.rect.bottom
 
 
-
-# TODO rename, it's more about grid then about labirinth
+# TODO rename, it's more about grid then about Labyrinth
 class Labyrinth:
 
     def __init__(self, area_width, area_height, grid_number):
@@ -289,7 +288,7 @@ def set_labyrinth(labyrinth):
             for _ in reversed(points_intersection):
                 walls[_].kill()
         else:
-            # other lines will be divide on chunks
+            # other lines will be split into parts
             chunks_list = labyrinth.make_list_of_chunks(rect_value)
 
             for chunk_count, chunks_value in enumerate(chunks_list):
