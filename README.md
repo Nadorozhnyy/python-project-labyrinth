@@ -12,7 +12,7 @@
 
 Simple Labyrinth game on Sidewinder Algorithm.
 It creates random labyrinth size 30x30 cells.
-To win you need get to the pink square.
+To win you need to get to the pink square.
 
 ![](example_labyrinth.png)
 
