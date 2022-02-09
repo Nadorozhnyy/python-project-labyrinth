@@ -284,33 +284,33 @@ def set_labyrinth(labyrinth):
         # first line will be empty
         if rect_count == 0:
             rect_from_line = pg.Rect.unionall(rect_value[0], rect_value)
-            points_intersection = rect_from_line.collidelistall(walls)
-            for _ in reversed(points_intersection):
+            line_intersection = rect_from_line.collidelistall(walls)
+            # remove all edge in first line rect
+            for _ in reversed(line_intersection):
                 walls[_].kill()
         else:
             # other lines will be split into parts
             chunks_list = labyrinth.make_list_of_chunks(rect_value)
-
             for chunk_count, chunks_value in enumerate(chunks_list):
-                rect_from_line = pg.Rect.unionall(chunks_value[0], chunks_value)
-                intersection_centers_point = rect_from_line.collidelistall(center_points)
+                rect_from_chunk = pg.Rect.unionall(chunks_value[0], chunks_value)
+                chunk_intersection = rect_from_chunk.collidelistall(walls)
+                # remove all edge in chunk rect
+                for _ in reversed(chunk_intersection):
+                    walls[_].kill()
+
+                intersection_centers_point = rect_from_chunk.collidelistall(center_points)
                 random_point = random.choice(intersection_centers_point)
                 random_point_in_line = center_points[random_point].rect
                 last_point = intersection_centers_point[-1]
+                # choose what edge will be removed (top or right)
                 flip_coin = random.randint(0, 1)
-
                 if flip_coin == 0 or center_points[last_point].rect.center[0] == get_max_horizontal_coordinate():
                     rect = center_points[random_point - labyrinth.grid_numbers_on_x_axis].rect
                 else:
                     rect = center_points[last_point + 1].rect
-
                 rect_union = pg.Rect.union(random_point_in_line, rect)
                 points_intersection = rect_union.collidelistall(walls)
-
-                for _ in reversed(points_intersection):
-                    walls[_].kill()
-
-                points_intersection = rect_from_line.collidelistall(walls)
+                # remove top or right edge to create labyrinth
                 for _ in reversed(points_intersection):
                     walls[_].kill()
 
