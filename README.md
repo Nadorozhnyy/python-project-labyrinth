@@ -1,4 +1,4 @@
-#<p align=center>Labyrinth</p>
+# <p align=center>Labyrinth</p>
 
 ---
 ## Table of contents
